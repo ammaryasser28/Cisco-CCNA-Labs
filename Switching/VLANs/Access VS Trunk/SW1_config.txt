@@ -1,0 +1,21 @@
+enable
+configure terminal
+!
+vlan 1
+ name VLAN1
+vlan 2
+ name VLAN2
+!
+interface fa0/2
+ switchport mode access
+ switchport access vlan 1
+!
+interface fa0/3
+ switchport mode access
+ switchport access vlan 2
+!
+interface fa0/1
+ switchport mode trunk
+!
+end
+write memory
