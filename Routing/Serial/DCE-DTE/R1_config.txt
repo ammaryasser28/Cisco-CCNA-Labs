@@ -1,0 +1,17 @@
+enable
+configure terminal
+hostname R1
+
+! اعرض جيرانك عشان تعرف الواجهات المتصلة
+do show cdp neighbors
+
+! ادخل على الانترفيس السيريال
+interface serial 0/0/0
+ ip address 192.168.0.1 255.255.255.0
+
+! لو الناحية دي DCE لازم نحدد clock rate
+clock rate 64000
+
+no shutdown
+end
+write memory
