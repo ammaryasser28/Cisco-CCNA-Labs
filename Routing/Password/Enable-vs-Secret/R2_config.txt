@@ -1,0 +1,12 @@
+enable
+configure terminal
+hostname R2
+
+enable password cisco
+enable secret ccna
+
+service password-encryption
+
+end
+write memory
+reload
