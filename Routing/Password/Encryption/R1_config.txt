@@ -1,0 +1,15 @@
+enable
+configure terminal
+hostname R1
+
+! ضع الباسورد العادي (غير مشفر)
+enable password cisco
+
+! أو الباسورد المشفر (الأقوى)
+enable secret cisco
+
+! تفعيل التشفير الضعيف لو مستخدم enable password
+service password-encryption
+
+end
+write memory
