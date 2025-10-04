@@ -1,0 +1,16 @@
+enable
+configure terminal
+hostname R1
+
+! باسورد عادي (ضعيف)
+enable password cisco
+
+! باسورد secret (الأقوى)
+enable secret ccna
+
+! فعل التشفير للباسورد العادي
+service password-encryption
+
+end
+write memory
+reload
