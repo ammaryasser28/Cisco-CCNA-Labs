@@ -1,0 +1,15 @@
+enable
+configure terminal
+hostname R2
+
+! اعرض جيرانك عشان تتأكد من الاتصال
+do show cdp neighbors
+
+! ادخل على الانترفيس السيريال
+interface serial 0/0/0
+ ip address 192.168.0.2 255.255.255.0
+
+! الناحية دي DTE غالبًا (مش بنحط clock rate)
+no shutdown
+end
+write memory
