@@ -1,0 +1,18 @@
+enable
+configure terminal
+hostname R1
+
+! باسورد الـ privilege mode
+enable secret cisco
+
+! باسورد الكونسول
+line console 0
+ password ccna
+ login
+exit
+
+! فعل التشفير
+service password-encryption
+
+end
+write memory
