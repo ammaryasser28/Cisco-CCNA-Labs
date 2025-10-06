@@ -1,0 +1,17 @@
+enable
+configure terminal
+hostname R1
+
+! فعل subinterfaces على G0/0
+interface gigabitEthernet 0/0.13
+ encapsulation dot1Q 13
+ ip address 10.0.0.1 255.255.255.128
+ no shutdown
+
+interface gigabitEthernet 0/0.24
+ encapsulation dot1Q 24
+ ip address 10.0.0.129 255.255.255.128
+ no shutdown
+
+end
+write memory
