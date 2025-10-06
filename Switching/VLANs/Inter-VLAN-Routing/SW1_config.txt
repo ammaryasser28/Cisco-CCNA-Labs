@@ -1,0 +1,34 @@
+enable
+configure terminal
+hostname SW1
+
+! إنشاء VLANs
+vlan 13
+ name VLAN13
+vlan 24
+ name VLAN24
+
+! PC1 → VLAN13
+interface fastEthernet 0/1
+ switchport mode access
+ switchport access vlan 13
+ no shutdown
+
+! PC2 → VLAN24
+interface fastEthernet 0/2
+ switchport mode access
+ switchport access vlan 24
+ no shutdown
+
+! البورت اللي رايح لـ SW2 (Gig0/2 مثلاً) trunk
+interface gigabitEthernet 0/2
+ switchport mode trunk
+ no shutdown
+
+! البورت اللي رايح لـ R1 (Gig0/0) trunk
+interface gigabitEthernet 0/0
+ switchport mode trunk
+ no shutdown
+
+end
+write memory
