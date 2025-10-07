@@ -1,5 +1,4 @@
 Troubleshooting Guide — Inter-VLAN Routing Lab (Detailed)
----------------------------------------------------------
 
 Context / symptom
 - بعد تكوين VLANs وRouter-on-a-Stick، الـ PCs من VLAN مختلفة لا تستطيع تبادل الـ ICMP (ping).
