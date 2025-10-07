@@ -1,0 +1,203 @@
+Troubleshooting Guide — Inter-VLAN Routing Lab (Detailed)
+---------------------------------------------------------
+
+Context / symptom
+- بعد تكوين VLANs وRouter-on-a-Stick، الـ PCs من VLAN مختلفة لا تستطيع تبادل الـ ICMP (ping).
+- الهدف: كل الـ PCs (VLAN13 و VLAN24) يقدروا يبنجوا بعض بدون تغيير عضوية VLAN.
+
+أدوات سريعة للفحص (run these first)
+- من R1, SW1, SW2 شغّل الأوامر دي لتجميع معلومات:
+  - على الراوتر:
+    show ip interface brief
+    show running-config | section interface GigabitEthernet0/0
+    show running-config | include interface GigabitEthernet0/0\.
+    show ip route
+  - على السويتش:
+    show interfaces status
+    show vlan brief
+    show interface trunk
+    show interfaces switchport
+    show running-config interface GigabitEthernet0/1   (غير الواجهة بحسب التوصيل)
+  - عام:
+    show cdp neighbors detail   (يتأكد من واجهات التوصيل الفعلية بين الأجهزة)
+
+Interpretation — شوف ايه المشكلة بناءً على النتائج
+1) لو واجهات الراوتر الفرعية (Gi0/0.13, Gi0/0.24) مش ظاهرة أو DOWN:
+   - المشكلة غالبًا إن الواجهة الفيزيائية Gi0/0 مغلقة أو معمول عليها IP مباشرة.
+   - الحل: لازم تكون الفيزيائية no ip address و no shutdown، وتُعرَّف subinterfaces مع encapsulation dot1Q.
+
+2) لو "show interface trunk" لا يظهر VLANs 13,24 على الترانك:
+   - الترانك ممكن يكون مش مفعل على أي من طرفيه أو allowed vlans محدود.
+   - الحل: فعل trunk على الواجهتين في كلا السويتشين (switchport mode trunk) وتأكد من allowed vlan.
+
+3) لو VLANs غير موجودة في "show vlan brief":
+   - أنشئ VLANs 13 و 24 على السويتشين.
+
+4) لو Native VLAN mismatch أو untagged traffic:
+   - تأكد من same native VLAN على الطرفين أو استخدم explicit native VLAN وإعرف كيف أثر ذلك على الترافيك.
+
+خطوات تصليح مفصّلة (copy-paste الأوامر ونفّذها حيث يطلب)
+A. على R1 — تأكد الواجهة الفيزيائية والسوبإنترفيسز:
+enable
+configure terminal
+
+interface GigabitEthernet0/0
+ no ip address
+ no shutdown
+ exit
+
+! إنشاء/تأكيد subinterfaces
+interface GigabitEthernet0/0.13
+ encapsulation dot1Q 13
+ ip address 10.0.0.1 255.255.255.128
+ no shutdown
+ exit
+
+interface GigabitEthernet0/0.24
+ encapsulation dot1Q 24
+ ip address 10.0.0.129 255.255.255.128
+ no shutdown
+ exit
+
+end
+write memory
+
+B. على SW1 — فعل trunk إلى R1 وSW2، وأنشئ VLANs:
+enable
+configure terminal
+
+vlan 13
+vlan 24
+
+! تأكد أن الواجهة إلى R1 مثلاً Gi0/1 هي trunk
+interface GigabitEthernet0/1
+ switchport trunk encapsulation dot1q    ! (لو السويتش يدعم)
+ switchport mode trunk
+ switchport trunk allowed vlan 13,24
+ no shutdown
+ exit
+
+! الواجهة إلى SW2 (افترض Gi0/2)
+interface GigabitEthernet0/2
+ switchport mode trunk
+ switchport trunk allowed vlan 13,24
+ no shutdown
+ exit
+
+! اضبط منافذ الوصول للـ PCs (غيّر المنافذ حسب التوبولوجي)
+interface FastEthernet0/1
+ switchport mode access
+ switchport access vlan 13
+ no shutdown
+ exit
+
+interface FastEthernet0/2
+ switchport mode access
+ switchport access vlan 24
+ no shutdown
+ exit
+
+end
+write memory
+
+C. على SW2 — فعل trunk إلى SW1 وضع المنافذ Access:
+enable
+configure terminal
+
+vlan 13
+vlan 24
+
+interface GigabitEthernet0/1
+ switchport mode trunk
+ switchport trunk allowed vlan 13,24
+ no shutdown
+ exit
+
+interface FastEthernet0/1
+ switchport mode access
+ switchport access vlan 13
+ no shutdown
+ exit
+
+interface FastEthernet0/2
+ switchport mode access
+ switchport access vlan 24
+ no shutdown
+ exit
+
+end
+write memory
+
+التحقق بعد التصليح (confirm)
+- على السويتشين:
+  show interface trunk
+  -> متوقع: Trunking VLANs Enabled: 13,24  (أو مشابه)
+  show vlan brief
+  -> متوقع: أعضاء VLAN 13/24 تظهر على البورتات الصحيحة
+  show interfaces status
+  -> متوقع: البورتات Up وAssigned VLANs صحيحة
+
+- على الراوتر:
+  show ip interface brief
+  -> متوقع: Gig0/0.13 and Gig0/0.24 state = up/up (أو up/down أحياناً until ARP/ping)
+  show ip route
+  -> متوقع: الشبكات 10.0.0.0/25 و 10.0.0.128/25 موجودين كـ connected via subinterfaces
+
+- من أي PC:
+  ping Default Gateway (subinterface ip) — مثال:
+  ping 10.0.0.1    (VLAN13 gateway)
+  ping 10.0.0.129  (VLAN24 gateway)
+  ثم ping بين الـ PCs المختلفة: كلها يجب أن تنجح.
+
+أخطاء شائعة إضافية ونصائح سريعة
+- الواجهة الفيزيائية للراوتر عليها IP رئيسي:
+  لا ينبغي أن يكون على Gi0/0 عنوان IP عندما تستخدم subinterfaces. إن وُجد، احذفه (no ip address).
+- استخدام الأمر "switchport trunk encapsulation dot1q" غير مدعوم على بعض السويتشات (مثل بعض 2960) — لو رفضه السويتش، فقط نفّذ "switchport mode trunk".
+- Native VLAN mismatch: إذا native VLAN مختلفة بين طرفي الترانك قد يؤدي لمشاكل (frames غير معنونة تُعامل خطأ). تأكد من "show interface trunk" ويظهر نفس Native VLAN على الطرفين.
+- Allowed VLANs مقيدة: لو تم تحديد allowed vlan بدون VLAN 13 أو 24 ستُمنع تلك الـ VLANs من المرور.
+- منافذ Access على السويتش في VLAN خاطئ: تحقق من "show interfaces switchport" لتتأكد assigned VLAN لكل منفذ.
+- تركيب السويتش أو الراوتر على منافذ خاطئة: استخدم "show cdp neighbors" أو "show cdp neighbors detail" لتعرف أي واجهة متصلة بأي جهاز فعليًا.
+
+أوامر مفيدة إضافية للتنقيح
+- show mac address-table dynamic | include <PC-MAC>   (يتأكد أن MAC ظاهر على الواجهة الصحيحة و VLAN صحيحة)
+- show arp
+- debug arp (استخدام بحذر في بيئة حقيقية)
+- ping from router to PC: ping 10.0.0.x source 10.0.0.1  (تجربة من الراوتر كمصدر)
+
+حالة متوقعة لأمثلة الأوامر
+- show interface trunk  -> يظهر شيء شبيهًا:
+  Port        Mode         Encapsulation  Status    Native VLAN
+  Gi0/1       trunk        802.1q         trunking  1
+  Gi0/2       trunk        802.1q         trunking  1
+
+  Port        Vlans allowed on trunk
+  Gi0/1       13,24
+  Gi0/2       13,24
+
+- show ip interface brief -> يظهر:
+  Interface                  IP-Address      OK? Method Status    Protocol
+  GigabitEthernet0/0         unassigned      YES manual up        up
+  GigabitEthernet0/0.13      10.0.0.1        YES manual up        up
+  GigabitEthernet0/0.24      10.0.0.129      YES manual up        up
+
+ملخص قائمة فحص سريعة (checklist)
+1. show cdp neighbors — تأكد الواجهات الفيزيائية المتصلة صحيحة.
+2. show vlan brief — تأكد VLANs موجودة وتحتوي البورتات الصحيحة.
+3. show interfaces status — تأكد البورتات Up.
+4. show interface trunk — تأكد الترانك مفعل ويحمل VLANs 13,24.
+5. show interfaces switchport <intf> — تأكد وضع interface (access/trunk) وassigned VLAN.
+6. show ip interface brief on R1 — تأكد subinterfaces up وبها العناوين الصحيحة.
+7. ping من الراوتر لـ PC ومن PC للـ gateway ومن PC إلى PC.
+
+إذا ما صَلّحتش بعد كل ده
+- أرسل لي مخرجات الأوامر التالية من كل جهاز (R1, SW1, SW2):
+  - show cdp neighbors detail
+  - show ip interface brief
+  - show interface trunk
+  - show vlan brief
+  - show running-config interface GigabitEthernet0/0   (على R1)
+  - show running-config interface GigabitEthernet0/1   (على SW1)
+  - show running-config interface GigabitEthernet0/1   (على SW2)
+وسأحلل المخرجات وأرجعلك بالتعديلات الدقيقة.
+
+Good luck — بعد تنفيذ التصليحات المتوقعة، كل الـ PCs لازم ينجحوا في تبادل الـ pings بدون تغيير عضوية VLAN.
