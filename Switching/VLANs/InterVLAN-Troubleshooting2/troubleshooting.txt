@@ -1,0 +1,63 @@
+Lab Title: Inter-VLAN Routing Troubleshooting
+
+Objective:
+Ensure PC1 can communicate with all other PCs (PC2, PC3, PC4) across VLANs 13 and 24.
+
+Network Summary:
+- VLAN 13: PC1 (10.0.0.2/25), PC3 (10.0.0.3/25)
+- VLAN 24: PC2 (10.0.0.130/25), PC4 (10.0.0.131/25)
+- Router: R1 performs Inter-VLAN routing via subinterfaces.
+- Switches: SW1 (core) and SV (access).
+
+------------------------------------------------------------
+🔍 Issues Found & Fixes
+
+[1] Router (R1)
+Issue:
+  Subinterface Gig0/0.13 was misconfigured (wrong IP or missing encapsulation).
+Fix:
+  interface GigabitEthernet0/0.13
+   encapsulation dot1Q 13
+   ip address 10.0.0.1 255.255.255.128
+
+[2] Switch SV (Access Switch)
+Issue:
+  Trunk port between SW1 and SV was not configured correctly.
+Fix:
+  interface GigabitEthernet0/1
+   switchport mode trunk
+   switchport trunk allowed vlan 13,24
+
+[3] PCs (End Devices)
+Issue:
+  Some PCs had incorrect default gateways.
+Fix:
+  VLAN 13 PCs → Gateway 10.0.0.1
+  VLAN 24 PCs → Gateway 10.0.0.129
+
+------------------------------------------------------------
+✅ Verification Steps
+
+From PC1:
+ ping 10.0.0.1      (gateway)
+ ping 10.0.0.3      (same VLAN)
+ ping 10.0.0.130    (different VLAN)
+ ping 10.0.0.131    (different VLAN)
+
+Router:
+ show ip interface brief
+ show ip route
+
+Switches:
+ show interfaces trunk
+ show vlan brief
+
+------------------------------------------------------------
+Result:
+✅ All PCs can now ping each other successfully.
+
+Notes:
+- Verify trunk links pass VLANs 13 & 24.
+- Confirm router subinterfaces use correct encapsulation (dot1Q).
+- Save configuration using: write memory
+------------------------------------------------------------
