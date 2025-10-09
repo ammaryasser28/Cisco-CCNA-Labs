@@ -1,0 +1,19 @@
+enable
+configure terminal
+hostname R1
+
+! إنشاء المستخدمين
+username ccna password cisco
+username ccnp password CISCO
+
+! إعداد خط الكونسول لاستخدام قاعدة البيانات المحلية
+line console 0
+ login local
+ no password
+ exit
+
+! إنشاء مستخدم ثالث
+username CCNA password router
+
+end
+write memory
